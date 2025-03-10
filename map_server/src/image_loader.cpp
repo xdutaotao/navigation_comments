@@ -52,7 +52,7 @@
 
 namespace map_server
 {
-
+// 从文件加载地图数据
 void
 loadMapFromFile(nav_msgs::GetMap::Response* resp,
                 const char* fname, double res, bool negate,

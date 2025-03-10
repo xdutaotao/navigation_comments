@@ -49,6 +49,7 @@ class MapGenerator
     {
       ros::NodeHandle n;
       ROS_INFO("Waiting for the map");
+      // 订阅map话题
       map_sub_ = n.subscribe("map", 1, &MapGenerator::mapCallback, this);
     }
 
@@ -71,6 +72,7 @@ class MapGenerator
 
       fprintf(out, "P5\n# CREATOR: map_saver.cpp %.3f m/pix\n%d %d\n255\n",
               map->info.resolution, map->info.width, map->info.height);
+      // 将地图文件的占据值写入文件
       for(unsigned int y = 0; y < map->info.height; y++) {
         for(unsigned int x = 0; x < map->info.width; x++) {
           unsigned int i = x + (map->info.height - y - 1) * map->info.width;
@@ -86,7 +88,7 @@ class MapGenerator
 
       fclose(out);
 
-
+      // yaml文件，包含地图的信息，resolution,origin,negate,occupied_thresh,free_thresh
       std::string mapmetadatafile = mapname_ + ".yaml";
       ROS_INFO("Writing map occupancy data to %s", mapmetadatafile.c_str());
       FILE* yaml = fopen(mapmetadatafile.c_str(), "w");

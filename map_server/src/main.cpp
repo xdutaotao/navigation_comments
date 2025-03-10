@@ -166,6 +166,7 @@ class MapServer
         origin[0] = origin[1] = origin[2] = 0.0;
       }
 
+      // 在读取yaml文件后，调用loadMapFromFile函数加载地图数据
       ROS_INFO("Loading map from image \"%s\"", mapfname.c_str());
       try
       {
@@ -187,14 +188,17 @@ class MapServer
                map_resp_.map.info.resolution);
       meta_data_message_ = map_resp_.map.info;
 
+      // 构建静态地图服务
       service = n.advertiseService("static_map", &MapServer::mapCallback, this);
       //pub = n.advertise<nav_msgs::MapMetaData>("map_metadata", 1,
 
       // Latched publisher for metadata
+      // 静态地图meta数据publisher
       metadata_pub= n.advertise<nav_msgs::MapMetaData>("map_metadata", 1, true);
       metadata_pub.publish( meta_data_message_ );
 
       // Latched publisher for data
+      // 静态地图数据publisher
       map_pub = n.advertise<nav_msgs::OccupancyGrid>("map", 1, true);
       map_pub.publish( map_resp_.map );
     }
@@ -206,6 +210,7 @@ class MapServer
     ros::ServiceServer service;
     bool deprecated;
 
+    // static_map的服务的回调函数，无用！！
     /** Callback invoked when someone requests our service */
     bool mapCallback(nav_msgs::GetMap::Request  &req,
                      nav_msgs::GetMap::Response &res )
