@@ -30,6 +30,21 @@
 #include <global_planner/quadratic_calculator.h>
 
 namespace global_planner {
+
+// 计算当前点的potential值
+// 输入：
+// potential: 势场数组
+// cost: 当前点的cost值
+// n: 当前点的索引
+// prev_potential: 前一个点的potential值
+// 输出：
+// 当前点的potential值
+// 计算方法：
+// 1. 获取当前点的上下左右四个点的potential值
+// 2. 找到其中最小的两个点，记为ta和tc
+// 3. 如果ta和tc的差值小于traversability factor，则使用ta-only update，否则使用two-neighbor interpolation update
+// 4. 使用二次插值公式计算当前点的potential值
+// 5. 返回当前点的potential值
 float QuadraticCalculator::calculatePotential(float* potential, unsigned char cost, int n, float prev_potential) {
     // get neighbors
     float u, d, l, r;

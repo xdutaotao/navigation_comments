@@ -40,6 +40,9 @@
 #include <stdio.h>
 namespace global_planner {
 
+// 从势场中回溯路径，输入势场potential，起点，终点，输出路径path
+// 从终点开始，每次选择周围8个点中势场值最小的点作为下一个点，直到起点
+// 输出路径path中包含起点和终点，起点在path的末尾，终点在path的开头
 bool GridPath::getPath(float* potential, double start_x, double start_y, double end_x, double end_y, std::vector<std::pair<float, float> >& path) {
     std::pair<float, float> current;
     current.first = end_x;
@@ -51,6 +54,7 @@ bool GridPath::getPath(float* potential, double start_x, double start_y, double 
     int c = 0;
     int ns = xs_ * ys_;
     
+    // 从终点开始回溯
     while (getIndex(current.first, current.second) != start_index) {
         float min_val = 1e10;
         int min_x = 0, min_y = 0;
@@ -60,6 +64,7 @@ bool GridPath::getPath(float* potential, double start_x, double start_y, double 
                     continue;
                 int x = current.first + xd, y = current.second + yd;
                 int index = getIndex(x, y);
+                // 检查周边8个位置的值，选择最小的作为下一个点
                 if (potential[index] < min_val) {
                     min_val = potential[index];
                     min_x = x;
@@ -69,10 +74,13 @@ bool GridPath::getPath(float* potential, double start_x, double start_y, double 
         }
         if (min_x == 0 && min_y == 0)
             return false;
+
+        // 将最小的点加入路径中
         current.first = min_x;
         current.second = min_y;
         path.push_back(current);
         
+        // 防止出现环路，死循环
         if(c++>ns*4){
             return false;
         }

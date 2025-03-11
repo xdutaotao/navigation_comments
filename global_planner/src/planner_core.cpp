@@ -51,6 +51,7 @@ PLUGINLIB_EXPORT_CLASS(global_planner::GlobalPlanner, nav_core::BaseGlobalPlanne
 
 namespace global_planner {
 
+// 给地图最外面增加一圈nx*ny的障碍
 void GlobalPlanner::outlineMap(unsigned char* costarr, int nx, int ny, unsigned char value) {
     unsigned char* pc = costarr;
     for (int i = 0; i < nx; i++)
@@ -91,9 +92,14 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
     initialize(name, costmap_ros->getCostmap(), costmap_ros->getGlobalFrameID());
 }
 
+// 初始化全局规划器
 void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id) {
     if (!initialized_) {
+
+        // node handler
         ros::NodeHandle private_nh("~/" + name);
+
+        // 传入costmap
         costmap_ = costmap;
         frame_id_ = frame_id;
 
@@ -105,6 +111,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         else
             convert_offset_ = 0.0;
 
+        // 根据参数，选择不同的代价计算器,二次或者线性计算
         bool use_quadratic;
         private_nh.param("use_quadratic", use_quadratic, true);
         if (use_quadratic)
@@ -112,6 +119,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         else
             p_calc_ = new PotentialCalculator(cx, cy);
 
+        // 根据参数，选择不同的路径规划器，A*或者Dijkstra
         bool use_dijkstra;
         private_nh.param("use_dijkstra", use_dijkstra, true);
         if (use_dijkstra)
@@ -124,6 +132,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         else
             planner_ = new AStarExpansion(p_calc_, cx, cy);
 
+        // 根据参数，选择不同的路径生成器，网格路径或者梯度路径
         bool use_grid_path;
         private_nh.param("use_grid_path", use_grid_path, false);
         if (use_grid_path)
@@ -131,8 +140,10 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         else
             path_maker_ = new GradientPath(p_calc_);
 
+        // 方向过滤器
         orientation_filter_ = new OrientationFilter();
 
+        // pub 路径plan和势场potential
         plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
         potential_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("potential", 1);
 
@@ -143,6 +154,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         private_nh.param("default_tolerance", default_tolerance_, 0.0);
         private_nh.param("publish_scale", publish_scale_, 100);
 
+        // 构建服务
         make_plan_srv_ = private_nh.advertiseService("make_plan", &GlobalPlanner::makePlanService, this);
 
         dsrv_ = new dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig>(ros::NodeHandle("~/" + name));
@@ -166,6 +178,7 @@ void GlobalPlanner::reconfigureCB(global_planner::GlobalPlannerConfig& config, u
     orientation_filter_->setWindowSize(config.orientation_window_size);
 }
 
+// 设置free
 void GlobalPlanner::clearRobotCell(const geometry_msgs::PoseStamped& global_pose, unsigned int mx, unsigned int my) {
     if (!initialized_) {
         ROS_ERROR(
@@ -177,6 +190,7 @@ void GlobalPlanner::clearRobotCell(const geometry_msgs::PoseStamped& global_pose
     costmap_->setCost(mx, my, costmap_2d::FREE_SPACE);
 }
 
+// 构建路径的服务，开启一个线程
 bool GlobalPlanner::makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp) {
     makePlan(req.start, req.goal, resp.plan.poses);
 
@@ -191,22 +205,28 @@ void GlobalPlanner::mapToWorld(double mx, double my, double& wx, double& wy) {
     wy = costmap_->getOriginY() + (my+convert_offset_) * costmap_->getResolution();
 }
 
+// 世界坐标转换为地图坐标，输入wx,wy，输出mx,my
 bool GlobalPlanner::worldToMap(double wx, double wy, double& mx, double& my) {
+    // 取costmap地图原点和分辨率
     double origin_x = costmap_->getOriginX(), origin_y = costmap_->getOriginY();
     double resolution = costmap_->getResolution();
 
+    // 检查wx,wy是否在地图范围内
     if (wx < origin_x || wy < origin_y)
         return false;
 
+    // 计算mx,my，注意这里的mx,my是小数，不是整数
     mx = (wx - origin_x) / resolution - convert_offset_;
     my = (wy - origin_y) / resolution - convert_offset_;
 
+    // 检查mx,my是否在地图范围内
     if (mx < costmap_->getSizeInCellsX() && my < costmap_->getSizeInCellsY())
         return true;
 
     return false;
 }
 
+// 构建路径 makePlan, 按默认的容忍度走
 bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
                            std::vector<geometry_msgs::PoseStamped>& plan) {
     return makePlan(start, goal, default_tolerance_, plan);
@@ -221,6 +241,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
         return false;
     }
 
+    // 先清理plan
     //clear the plan, just in case
     plan.clear();
 
@@ -240,12 +261,14 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
         return false;
     }
 
+    // 起始点和目标点的坐标
     double wx = start.pose.position.x;
     double wy = start.pose.position.y;
 
     unsigned int start_x_i, start_y_i, goal_x_i, goal_y_i;
     double start_x, start_y, goal_x, goal_y;
 
+    // 起始点，转换得到在地图中的坐标
     if (!costmap_->worldToMap(wx, wy, start_x_i, start_y_i)) {
         ROS_WARN(
                 "The robot's start position is off the global costmap. Planning will always fail, are you sure the robot has been properly localized?");
@@ -258,6 +281,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
         worldToMap(wx, wy, start_x, start_y);
     }
 
+    // 目标点，转换得到在地图中的坐标
     wx = goal.pose.position.x;
     wy = goal.pose.position.y;
 
@@ -273,17 +297,22 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
         worldToMap(wx, wy, goal_x, goal_y);
     }
 
+    // 设置起始点为free
     //clear the starting cell within the costmap because we know it can't be an obstacle
     clearRobotCell(start, start_x_i, start_y_i);
 
     int nx = costmap_->getSizeInCellsX(), ny = costmap_->getSizeInCellsY();
 
+    // 设置w+h的窗口
     //make sure to resize the underlying array that Navfn uses
     p_calc_->setSize(nx, ny);
     planner_->setSize(nx, ny);
     path_maker_->setSize(nx, ny);
+
+    // 势场
     potential_array_ = new float[nx * ny];
 
+    // 在地图周围增加一圈障碍
     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
 
     bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
@@ -291,6 +320,8 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
 
     if(!old_navfn_behavior_)
         planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
+
+    // 发布势场
     if(publish_potential_)
         publishPotential(potential_array_);
 
@@ -308,15 +339,18 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
         ROS_ERROR("Failed to get a plan.");
     }
 
+    // 对路径进行角度平滑，确保路径的方向是连续的
     // add orientations if needed
     orientation_filter_->processPath(start, plan);
 
+    // 发布路径
     //publish the plan for visualization purposes
     publishPlan(plan);
     delete potential_array_;
     return !plan.empty();
 }
 
+// 发布路径
 void GlobalPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped>& path) {
     if (!initialized_) {
         ROS_ERROR(
@@ -339,6 +373,7 @@ void GlobalPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped>& p
     plan_pub_.publish(gui_path);
 }
 
+// 从potential中获取最终path
 bool GlobalPlanner::getPlanFromPotential(double start_x, double start_y, double goal_x, double goal_y,
                                       const geometry_msgs::PoseStamped& goal,
                                        std::vector<geometry_msgs::PoseStamped>& plan) {

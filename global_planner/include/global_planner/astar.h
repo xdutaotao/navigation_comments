@@ -50,10 +50,11 @@ class Index {
             i = a;
             cost = b;
         }
-        int i;
-        float cost;
+        int i;          // 索引
+        float cost;     // cost
 };
 
+// 比较两个cost的大小，采用逆序
 struct greater1 {
         bool operator()(const Index& a, const Index& b) const {
             return a.cost > b.cost;

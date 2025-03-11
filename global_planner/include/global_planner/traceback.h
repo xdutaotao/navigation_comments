@@ -42,6 +42,7 @@
 
 namespace global_planner {
 
+// 全局路径规划中用于从势场中回溯路径的核心基类
 class Traceback {
     public:
         Traceback(PotentialCalculator* p_calc) : p_calc_(p_calc) {}

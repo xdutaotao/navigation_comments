@@ -65,6 +65,14 @@ void GradientPath::setSize(int xs, int ys) {
     grady_ = new float[xs * ys];
 }
 
+// 梯度路径回溯，从目标点开始，沿着梯度方向逐步回溯，直到起点
+// 输入参数potential为势场，start_x和start_y为起点坐标，goal_x和goal_y为目标点坐标，path为输出的路径点序列
+// 返回值为bool类型，表示是否成功找到路径
+// 函数中使用了梯度路径回溯算法，首先计算起点和目标点的索引值，然后初始化偏移量dx和dy为0
+// 接着进入循环，每次循环都检查当前点是否接近起点，如果是则将起点加入路径中并返回true
+// 如果当前点超出了地图范围，则输出错误信息并返回false
+// 否则，将当前点加入路径中，并检查当前点周围的八个点是否有潜在值小于POT_HIGH，如果有，则选择潜在值最小的点作为下一个点
+// 如果八个点的潜在值都大于等于POT_HIGH，则计算当前点周围的八个点的梯度，并将梯度方向作为下一个点的偏移量
 bool GradientPath::getPath(float* potential, double start_x, double start_y, double goal_x, double goal_y, std::vector<std::pair<float, float> >& path) {
     std::pair<float, float> current;
     int stc = getIndex(goal_x, goal_y);

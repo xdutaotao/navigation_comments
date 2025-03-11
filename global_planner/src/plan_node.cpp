@@ -52,6 +52,7 @@ using cm::Costmap2DROS;
 
 namespace global_planner {
 
+// 全局规划器，采用costmap来进行路径规划
 class PlannerWithCostmap : public GlobalPlanner {
     public:
         PlannerWithCostmap(string name, Costmap2DROS* cmap);
@@ -69,6 +70,8 @@ bool PlannerWithCostmap::makePlanService(navfn::MakeNavPlan::Request& req, navfn
 
     req.start.header.frame_id = "map";
     req.goal.header.frame_id = "map";
+
+    // plan得到一个path，返回response
     bool success = makePlan(req.start, req.goal, path);
     resp.plan_found = success;
     if (success) {
@@ -78,6 +81,7 @@ bool PlannerWithCostmap::makePlanService(navfn::MakeNavPlan::Request& req, navfn
     return true;
 }
 
+// 获取pose的callback
 void PlannerWithCostmap::poseCallback(const rm::PoseStamped::ConstPtr& goal) {
     geometry_msgs::PoseStamped global_pose;
     cmap_->getRobotPose(global_pose);
@@ -85,11 +89,16 @@ void PlannerWithCostmap::poseCallback(const rm::PoseStamped::ConstPtr& goal) {
     makePlan(global_pose, *goal, path);
 }
 
+// 构造函数
 PlannerWithCostmap::PlannerWithCostmap(string name, Costmap2DROS* cmap) :
         GlobalPlanner(name, cmap->getCostmap(), cmap->getGlobalFrameID()) {
     ros::NodeHandle private_nh("~");
+
+    // costmap
     cmap_ = cmap;
+    // service
     make_plan_service_ = private_nh.advertiseService("make_plan", &PlannerWithCostmap::makePlanService, this);
+    // 订阅目标goal的pose
     pose_sub_ = private_nh.subscribe<rm::PoseStamped>("goal", 1, &PlannerWithCostmap::poseCallback, this);
 }
 
@@ -99,10 +108,14 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "global_planner");
 
     tf2_ros::Buffer buffer(ros::Duration(10));
+
+    // 监听tf
     tf2_ros::TransformListener tf(buffer);
 
+    // 构建costmap2D RoS类对象
     costmap_2d::Costmap2DROS lcr("costmap", buffer);
 
+    // 构建全局规划器对象
     global_planner::PlannerWithCostmap pppp("planner", &lcr);
 
     ros::spin();

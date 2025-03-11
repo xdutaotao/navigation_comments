@@ -39,12 +39,14 @@
 #define _POTENTIAL_CALCULATOR_H
 namespace global_planner {
 
+// 势场计算类
 class PotentialCalculator {
     public:
         PotentialCalculator(int nx, int ny) {
             setSize(nx, ny);
         }
 
+        // 如果前一个potential值<0, 则取上下左右的最小值，否则取前一个potential值加上当前cost值
         virtual float calculatePotential(float* potential, unsigned char cost, int n, float prev_potential=-1){
             if(prev_potential < 0){
                 // get min of neighbors

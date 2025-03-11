@@ -62,7 +62,7 @@ class GridPath;
  * @class PlannerCore
  * @brief Provides a ROS wrapper for the global_planner planner which runs a fast, interpolated navigation function on a costmap.
  */
-
+// 全局规划器核心类
 class GlobalPlanner : public nav_core::BaseGlobalPlanner {
     public:
         /**
@@ -99,6 +99,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
          * @param plan The plan... filled by the planner
          * @return True if a valid plan was found, false otherwise
          */
+        // 给定start和goal，计算plan点集合，采用vector<>返回
         bool makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
                       std::vector<geometry_msgs::PoseStamped>& plan);
 

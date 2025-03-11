@@ -42,15 +42,19 @@ namespace global_planner {
 
 enum OrientationMode { NONE, FORWARD, INTERPOLATE, FORWARDTHENINTERPOLATE, BACKWARD, LEFTWARD, RIGHTWARD };
 
+// 处理路径点方向
 class OrientationFilter {
     public:
         OrientationFilter() : omode_(NONE) {}
     
     
+        // 处理路径点方向
         virtual void processPath(const geometry_msgs::PoseStamped& start,
                                  std::vector<geometry_msgs::PoseStamped>& path);
                                  
         void setAngleBasedOnPositionDerivative(std::vector<geometry_msgs::PoseStamped>& path, int index);
+
+        // 插值
         void interpolate(std::vector<geometry_msgs::PoseStamped>& path, 
                          int start_index, int end_index);
                          
